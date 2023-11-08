@@ -2221,10 +2221,10 @@ enum Mounts
     SPELL_PHOENIX_B_310                 = 80994,
 
     // Katzenmount Phönix
-    SPELL_CATMOUNT_60                  = 80996,
-    SPELL_CATMOUNT_100                 = 80997,
-    SPELL_CATMOUNT_150                 = 80998,
-    SPELL_CATMOUNT_310                 = 80999,
+    SPELL_CATMOUNT_60                   = 80996,
+    SPELL_CATMOUNT_100                  = 80997,
+    SPELL_CATMOUNT_150                  = 80998,
+    SPELL_CATMOUNT_310                  = 80999,
 
     // Fox Mount
     SPELL_FOX_60                 	    = 80934,
@@ -2237,6 +2237,71 @@ enum Mounts
     SPELL_HAND_100                	    = 80940,
     SPELL_HAND_150                	    = 80941,
     SPELL_HAND_310                	    = 80942,
+
+    // Paladin Klassenmount Blau
+    SPELL_PALA_BLAU_100                 = 81210,
+    SPELL_PALA_BLAU_150                 = 81211,
+    SPELL_PALA_BLAU_280                 = 81212,
+
+    // Paladin Klassenmount Purple
+    SPELL_PALA_PURPLE_100               = 81213,
+    SPELL_PALA_PURPLE_150               = 81214,
+    SPELL_PALA_PURPLE_280               = 81215,
+
+    // Paladin Klassenmount Rot
+    SPELL_PALA_RED_100                  = 81216,
+    SPELL_PALA_RED_150                  = 81217,
+    SPELL_PALA_RED_280                  = 81218,
+
+    // Paladin Klassenmount Gelb
+    SPELL_PALA_YELLOW_100               = 81219,
+    SPELL_PALA_YELLOW_150               = 81220,
+    SPELL_PALA_YELLOW_280               = 81221,
+
+    // Jäger Klassenmount Blau
+    SPELL_HUNTER_BLUE_100               = 81222,
+    SPELL_HUNTER_BLUE_150               = 81223,
+    SPELL_HUNTER_BLUE_280               = 81224,
+
+    // Jäger Klassenmount Grün
+    SPELL_HUNTER_GREEN_100              = 81225,
+    SPELL_HUNTER_GREEN_150              = 81226,
+    SPELL_HUNTER_GREEN_280              = 81227,
+
+    // Jäger Klassenmount Orange
+    SPELL_HUNTER_ORANGE_100             = 81228,
+    SPELL_HUNTER_ORANGE_150             = 81229,
+    SPELL_HUNTER_ORANGE_280             = 81230,
+
+    // Priester Klassenmount Diszi
+    SPELL_PRIEST_DISZI_100              = 81231,
+    SPELL_PRIEST_DISZI_150              = 81232,
+    SPELL_PRIEST_DISZI_280              = 81233,
+
+    // Priester Klassenmount Holy
+    SPELL_PRIEST_HOLY_100               = 81234,
+    SPELL_PRIEST_HOLY_150               = 81235,
+    SPELL_PRIEST_HOLY_280               = 81236,
+
+    // Priester Klassenmount Shadow
+    SPELL_PRIEST_SHADOW_100             = 81237,
+    SPELL_PRIEST_SHADOW_150             = 81238,
+    SPELL_PRIEST_SHADOW_280             = 81239,
+
+    // Hexenmeister Klassenmount Grün
+    SPELL_WARLOCK_GREEN_100             = 81240,
+    SPELL_WARLOCK_GREEN_150             = 81241,
+    SPELL_WARLOCK_GREEN_280             = 81242,
+
+    // Hexenmeister Klassenmount Rot
+    SPELL_WARLOCK_RED_100               = 81243,
+    SPELL_WARLOCK_RED_150               = 81244,
+    SPELL_WARLOCK_RED_280               = 81245,
+
+    // Hexenmeister Klassenmount Schatten
+    SPELL_WARLOCK_SHADOW_100            = 81246,
+    SPELL_WARLOCK_SHADOW_150            = 81247,
+    SPELL_WARLOCK_SHADOW_280            = 81248,
 
     // Blazing Hippogryph
     SPELL_BLAZING_HIPPOGRYPH_150        = 74854,
@@ -4719,6 +4784,19 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScriptWithArgs(spell_gen_mount, "spell_catmount", 0, SPELL_CATMOUNT_60, SPELL_CATMOUNT_100, SPELL_CATMOUNT_150, SPELL_CATMOUNT_310);
     RegisterSpellScriptWithArgs(spell_gen_mount, "spell_fox", 0, SPELL_FOX_60, SPELL_FOX_100, SPELL_FOX_150, SPELL_FOX_310);
     RegisterSpellScriptWithArgs(spell_gen_mount, "spell_hand", 0, SPELL_HAND_60, SPELL_HAND_100, SPELL_HAND_150, SPELL_HAND_310);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_pala_blue", 0, 0, SPELL_PALA_BLAU_100, SPELL_PALA_BLAU_150, SPELL_PALA_BLAU_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_pala_purple", 0, 0, SPELL_PALA_PURPLE_100, SPELL_PALA_PURPLE_150, SPELL_PALA_PURPLE_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_pala_red", 0, 0, SPELL_PALA_RED_100, SPELL_PALA_RED_150, SPELL_PALA_RED_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_pala_yellow", 0, 0, SPELL_PALA_YELLOW_100, SPELL_PALA_YELLOW_150, SPELL_PALA_YELLOW_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_hunter_blue", 0, 0, SPELL_HUNTER_BLUE_100, SPELL_HUNTER_BLUE_150, SPELL_HUNTER_BLUE_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_hunter_green", 0, 0, SPELL_HUNTER_GREEN_100, SPELL_HUNTER_GREEN_150, SPELL_HUNTER_GREEN_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_hunter_orange", 0, 0, SPELL_HUNTER_ORANGE_100, SPELL_HUNTER_ORANGE_150, SPELL_HUNTER_ORANGE_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_priest_diszi", 0, 0, SPELL_PRIEST_DISZI_100, SPELL_PRIEST_DISZI_150, SPELL_PRIEST_DISZI_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_priest_holy", 0, 0, SPELL_PRIEST_HOLY_100, SPELL_PRIEST_HOLY_150, SPELL_PRIEST_HOLY_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_priest_shadow", 0, 0, SPELL_PRIEST_SHADOW_100, SPELL_PRIEST_SHADOW_150, SPELL_PRIEST_SHADOW_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_warlock_green", 0, 0, SPELL_WARLOCK_GREEN_100, SPELL_WARLOCK_GREEN_150, SPELL_WARLOCK_GREEN_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_warlock_red", 0, 0, SPELL_WARLOCK_RED_100, SPELL_WARLOCK_RED_150, SPELL_WARLOCK_RED_280);
+    RegisterSpellScriptWithArgs(spell_gen_mount, "spell_warlock_shadow", 0, 0, SPELL_WARLOCK_SHADOW_100, SPELL_WARLOCK_SHADOW_150, SPELL_WARLOCK_SHADOW_280);
     RegisterSpellScriptWithArgs(spell_gen_mount, "spell_blazing_hippogryph", 0, 0, 0, SPELL_BLAZING_HIPPOGRYPH_150, SPELL_BLAZING_HIPPOGRYPH_280);
     RegisterSpellScriptWithArgs(spell_gen_mount, "spell_celestial_steed", 0, SPELL_CELESTIAL_STEED_60, SPELL_CELESTIAL_STEED_100, SPELL_CELESTIAL_STEED_150, SPELL_CELESTIAL_STEED_280, SPELL_CELESTIAL_STEED_310);
     RegisterSpellScriptWithArgs(spell_gen_mount, "spell_x53_touring_rocket", 0, 0, 0, SPELL_X53_TOURING_ROCKET_150, SPELL_X53_TOURING_ROCKET_280, SPELL_X53_TOURING_ROCKET_310);
