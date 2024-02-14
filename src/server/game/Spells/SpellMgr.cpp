@@ -4569,6 +4569,34 @@ void SpellMgr::LoadSpellInfoCorrections()
         spellInfo->_GetEffect(EFFECT_0).RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_5_YARDS); // 5yd
     });
 
+    /* Shadow Trap Custom Spellfixes */
+
+    // Summon Shadow Trap
+    ApplySpellFix({ 81267 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(3); // 60 seconds
+    });
+
+    // Shadow Trap (visual)
+    ApplySpellFix({ 81264 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->DurationEntry = sSpellDurationStore.LookupEntry(27); // 3 seconds
+    });
+
+    // Shadow Trap
+    ApplySpellFix({ 81269 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->_GetEffect(EFFECT_1).RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_10_YARDS); // 10yd
+    });
+
+    // Shadow Trap (searcher)
+    ApplySpellFix({ 81265 }, [](SpellInfo* spellInfo)
+    {
+        spellInfo->_GetEffect(EFFECT_0).RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_5_YARDS); // 5yd
+    });
+
+    /* Shadow Trap Custom Spellfixes */
+
     // Restore Soul
     ApplySpellFix({ 72595, 73650 }, [](SpellInfo* spellInfo)
     {
