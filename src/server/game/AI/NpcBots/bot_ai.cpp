@@ -7108,6 +7108,14 @@ void bot_ai::_OnAreaUpdate(uint32 areaId)
                     botPet->CastSpell(botPet, itr->second->spellId, true);
             }
         }
+
+        for (uint8 slot = BOT_SLOT_MAINHAND; slot != BOT_SLOT_RANGED; ++slot)
+        {
+            if (Item const* item = _equips[slot])
+                if (item->IsLimitedToAnotherMapOrZone(me->GetMapId(), areaId))
+                    if (_resetEquipment(slot, ObjectGuid::Empty))
+                        continue;
+        }
     }
 
     AreaTableEntry const* area = sAreaTableStore.LookupEntry(areaId);
@@ -9486,6 +9494,21 @@ bool bot_ai::OnGossipSelect(Player* player, Creature* creature/* == me*/, uint32
                 ++counter;
                 std::ostringstream name;
                 _AddItemLink(player, item, name);
+                ItemTemplate const* proto = item->GetTemplate();
+                uint8 slot = BOT_SLOT_BODY;
+                if (GetBotClass() == BOT_CLASS_HUNTER)
+                {
+                    if (_canEquip(proto, BOT_SLOT_RANGED, true))
+                        slot = BOT_SLOT_RANGED;
+                    else if (_canEquip(proto, BOT_SLOT_MAINHAND, true))
+                        slot = BOT_SLOT_MAINHAND;
+                    else if (_canEquip(proto, BOT_SLOT_OFFHAND, true))
+                        slot = BOT_SLOT_OFFHAND;
+                }
+                else if (GetBotClass() == BOT_CLASS_WARRIOR && _canEquip(proto, BOT_SLOT_MAINHAND, true))
+                    slot = BOT_SLOT_MAINHAND;
+
+                name << " GS: " << uint32(CalculateItemGearScore(me->GetEntry(), me->GetLevel(), GetBotClass(), GetSpec(), slot, proto));
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, name.str(), GOSSIP_SENDER_EQUIPMENT_BANK_WITHDRAW_ITEM, GOSSIP_ACTION_INFO_DEF + item->GetGUID().GetCounter());
             }
 
@@ -12664,9 +12687,8 @@ void bot_ai::ApplyItemEnchantment(Item* item, EnchantmentSlot eslot, uint8 slot)
                     // Cast custom spell vs all equal basepoints got from enchant_amount
                     CastSpellExtraArgs args(item);
                     if (basepoints)
-                    {
-                        args.AddSpellBP0(basepoints);
-                    }
+                        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                            args.AddSpellMod(SpellValueMod(SPELLVALUE_BASE_POINT0 + i), basepoints);
                     me->CastSpell(me, enchant_spell_id, args);
                 }
                 break;
@@ -12930,9 +12952,8 @@ void bot_ai::ApplyItemEquipEnchantmentSpells(Item* item)
                     // Cast custom spell vs all equal basepoints got from enchant_amount
                     CastSpellExtraArgs args(item);
                     if (basepoints)
-                    {
-                        args.AddSpellBP0(basepoints);
-                    }
+                        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+                            args.AddSpellMod(SpellValueMod(SPELLVALUE_BASE_POINT0 + i), basepoints);
                     me->CastSpell(me, enchant_spell_id, args);
                     break;
                 }
