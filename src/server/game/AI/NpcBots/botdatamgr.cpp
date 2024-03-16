@@ -1380,7 +1380,7 @@ bool BotDataMgr::GenerateBattlegroundBots(Player const* groupLeader, [[maybe_unu
         {
             for (auto const& real_bg_pair : kv.second.m_Battlegrounds)
             {
-                Battleground const* real_bg = real_bg_pair.second;
+                Battleground const* real_bg = real_bg_pair.second.get();
                 if (real_bg->GetInstanceID() != 0 && real_bg->GetBracketId() == bracketId &&
                     real_bg->GetStatus() < STATUS_WAIT_LEAVE && real_bg->HasFreeSlots())
                 {
@@ -1486,6 +1486,7 @@ bool BotDataMgr::GenerateBattlegroundBots(Player const* groupLeader, [[maybe_unu
         sBattlegroundMgr->ScheduleQueueUpdate(ammr, atype, bgqTypeId, bgTypeId, bracketId);
     }, Seconds(2));
 
+    uint8 maxlevel = BotMgr::IsBotLevelCappedByConfigBGFirstPlayer() ? groupLeader->GetLevel() : 0;
     for (NpcBotRegistry const* registry3 : { &spawned_bots_a, &spawned_bots_h })
     {
         uint32 seconds_delay = 5;
@@ -1495,6 +1496,8 @@ bool BotDataMgr::GenerateBattlegroundBots(Player const* groupLeader, [[maybe_unu
             bot->GetBotAI()->canUpdate = false;
 
             const_cast<Creature*>(bot)->SetPvP(true);
+            if (maxlevel && bot->GetLevel() > maxlevel)
+                const_cast<Creature*>(bot)->SetLevel(maxlevel);
             queue->AddBotAsGroup(bot->GetGUID(), GetTeamIdForFaction(bot->GetFaction()) == TEAM_HORDE ? HORDE : ALLIANCE,
                 bgTypeId, bracketEntry, atype, false, gqinfo->ArenaTeamRating, ammr);
 

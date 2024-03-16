@@ -117,6 +117,7 @@ bool _enrageOnDismiss;
 bool _botStatLimits;
 bool _enableWanderingBotsBG;
 bool _enableConfigLevelCapBG;
+bool _enableConfigLevelCapBGFirst;
 bool _bothk_enable;
 bool _bothk_message_enable;
 bool _bothk_achievements_enable;
@@ -132,6 +133,7 @@ float _mult_dmg_wanderer;
 float _mult_healing_wanderer;
 float _mult_hp_wanderer;
 float _mult_speed_wanderer;
+float _mult_xpgain_wanderer;
 float _mult_dmg_warrior;
 float _mult_dmg_paladin;
 float _mult_dmg_hunter;
@@ -370,8 +372,10 @@ void BotMgr::LoadConfig(bool reload)
     _botStatLimits_block            = sConfigMgr->GetFloatDefault("NpcBot.Stats.Limits.Block", 95.0f);
     _botStatLimits_crit             = sConfigMgr->GetFloatDefault("NpcBot.Stats.Limits.Crit", 95.0f);
     _desiredWanderingBotsCount      = sConfigMgr->GetIntDefault("NpcBot.WanderingBots.Continents.Count", 0);
+    _mult_xpgain_wanderer           = sConfigMgr->GetFloatDefault("NpcBot.WanderingBots.Continents.XPGain", 1.0f);
     _enableWanderingBotsBG          = sConfigMgr->GetBoolDefault("NpcBot.WanderingBots.BG.Enable", false);
     _enableConfigLevelCapBG         = sConfigMgr->GetBoolDefault("NpcBot.WanderingBots.BG.CapLevel", false);
+    _enableConfigLevelCapBGFirst    = sConfigMgr->GetBoolDefault("NpcBot.WanderingBots.BG.CapLevelByFirstPlayer", false);
     _targetBGPlayersPerTeamCount_AV = sConfigMgr->GetIntDefault("NpcBot.WanderingBots.BG.TargetTeamPlayersCount.AV", 0);
     _targetBGPlayersPerTeamCount_WS = sConfigMgr->GetIntDefault("NpcBot.WanderingBots.BG.TargetTeamPlayersCount.WS", 8);
     _targetBGPlayersPerTeamCount_AB = sConfigMgr->GetIntDefault("NpcBot.WanderingBots.BG.TargetTeamPlayersCount.AB", 12);
@@ -448,6 +452,7 @@ void BotMgr::LoadConfig(bool reload)
     RoundToInterval(_mult_healing_wanderer, 0.1f, 10.f);
     RoundToInterval(_mult_hp_wanderer, 0.1f, 10.f);
     RoundToInterval(_mult_speed_wanderer, 0.1f, 10.f);
+    RoundToInterval(_mult_xpgain_wanderer, 0.0f, 100.f);
     RoundToInterval(_mult_dmg_warrior, 0.1f, 10.f);
     RoundToInterval(_mult_dmg_paladin, 0.1f, 10.f);
     RoundToInterval(_mult_dmg_hunter, 0.1f, 10.f);
@@ -714,6 +719,10 @@ bool BotMgr::IsBotGenerationEnabledBGs()
 bool BotMgr::IsBotLevelCappedByConfigBG()
 {
     return _enableConfigLevelCapBG;
+}
+bool BotMgr::IsBotLevelCappedByConfigBGFirstPlayer()
+{
+    return _enableConfigLevelCapBGFirst;
 }
 bool BotMgr::IsBotGenerationEnabledWorldMapId(uint32 mapId)
 {
@@ -2721,6 +2730,10 @@ float BotMgr::GetBotWandererHPMod()
 float BotMgr::GetBotWandererSpeedMod()
 {
     return _mult_speed_wanderer;
+}
+float BotMgr::GetBotWandererXPGainMod()
+{
+    return _mult_xpgain_wanderer;
 }
 BotBrackets BotMgr::GetBotWandererLevelBrackets()
 {
