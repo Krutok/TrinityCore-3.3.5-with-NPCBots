@@ -2493,7 +2493,7 @@ void Player::RemoveFromGroup(Group* group, ObjectGuid guid, RemoveMethod method 
     else if (guid.IsPlayer())
     {
         std::vector<ObjectGuid> botguids;
-        botguids.reserve(BotMgr::GetMaxNpcBots() / 2 + 1);
+        botguids.reserve(BotMgr::GetMaxNpcBots(DEFAULT_MAX_LEVEL) / 2 + 1);
         BotDataMgr::GetNPCBotGuidsByOwner(botguids, guid);
         for (std::vector<ObjectGuid>::const_iterator ci = botguids.begin(); ci != botguids.end(); ++ci)
         {
@@ -20752,20 +20752,6 @@ void Player::RemovePet(Pet* pet, PetSaveMode mode, bool returnreagent)
     }
 
     pet->CombatStop();
-
-    if (returnreagent)
-    {
-        switch (pet->GetEntry())
-        {
-            //warlock pets except imp are removed(?) when logging out
-            case 1860:
-            case 1863:
-            case 417:
-            case 17252:
-                mode = PET_SAVE_NOT_IN_SLOT;
-                break;
-        }
-    }
 
     // only if current pet in slot
     pet->SavePetToDB(mode);
