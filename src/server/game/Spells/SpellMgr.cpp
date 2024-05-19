@@ -4648,7 +4648,7 @@ void SpellMgr::LoadSpellInfoCorrections()
     });
 
     // Twilight Cutter
-    ApplySpellFix({ 74769, 77844, 77845, 77846 }, [](SpellInfo* spellInfo)
+    ApplySpellFix({ 74769, 77844, 77845, 77846, 81284, 81285 }, [](SpellInfo* spellInfo)
     {
         spellInfo->_GetEffect(EFFECT_0).RadiusEntry = sSpellRadiusStore.LookupEntry(EFFECT_RADIUS_100_YARDS); // 100yd
     });
