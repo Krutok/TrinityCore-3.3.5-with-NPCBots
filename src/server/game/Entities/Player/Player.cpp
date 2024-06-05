@@ -25038,6 +25038,9 @@ bool Player::CanFlyInZone(uint32 mapid, uint32 zone, SpellInfo const* bySpell) c
     if (v_map == 571 && !bySpell->HasAttribute(SPELL_ATTR7_IGNORE_COLD_WEATHER_FLYING))
         if (!HasSpell(54197)) // 54197 = Cold Weather Flying
             return false;
+    if (v_map == 728 && !bySpell->HasAttribute(SPELL_ATTR7_IGNORE_COLD_WEATHER_FLYING))
+        if (!HasSpell(81287)) // 81287 = Spieler hat den Spell Dracheninsel Fliegen
+            return false;
 
     return true;
 }
