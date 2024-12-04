@@ -1132,9 +1132,9 @@ bool Creature::Create(ObjectGuid::LowType guidlow, Map* map, uint32 phaseMask, u
     }
     {
         // area/zone id is needed immediately for ZoneScript::GetCreatureEntry hook before it is known which creature template to load (no model/scale available yet)
-        PositionFullTerrainStatus data;
-        GetMap()->GetFullTerrainStatusForPosition(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), data, MAP_ALL_LIQUIDS, DEFAULT_COLLISION_HEIGHT);
-        ProcessPositionDataChanged(data);
+        PositionFullTerrainStatus terrainStatus;
+        GetMap()->GetFullTerrainStatusForPosition(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), terrainStatus);
+        ProcessPositionDataChanged(terrainStatus);
     }
 
     // Allow players to see those units while dead, do it here (mayby altered by addon auras)
@@ -1363,6 +1363,11 @@ void Creature::SetLootRecipient(Unit* unit, bool withGroup)
     }
     else
         m_lootRecipientGroup = ObjectGuid::Empty;
+
+    //npcbot: prevent visual tap on owned bots
+    if (IsNPCBotOrPet() && !IsFreeBot())
+        return;
+    //end npcbot
 
     SetDynamicFlag(UNIT_DYNFLAG_TAPPED);
 }
@@ -2879,6 +2884,11 @@ bool Creature::CanSwim() const
 
     if (IsPet())
         return true;
+
+    //npcbot
+    if (IsNPCBotOrPet())
+        return true;
+    //end npcbot
 
     return false;
 }

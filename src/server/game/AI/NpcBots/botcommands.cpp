@@ -2081,7 +2081,7 @@ public:
             return true;
         }
 
-        if (owner->GetBotMgr()->IsPartyInCombat())
+        if (owner->GetBotMgr()->IsPartyInCombat(false))
         {
             handler->SendSysMessage("Can't do that while in combat!");
             return true;
@@ -2297,6 +2297,8 @@ public:
                 return true;
             }
 
+            uint32 found_bots_count = static_cast<uint32>(cBots.size());
+
             for (Creature const* fbot : cBots)
             {
                 base_spell = fbot->GetBotAI()->GetBaseSpell(*spell_name, handler->GetSessionDbcLocale());
@@ -2306,7 +2308,7 @@ public:
 
             if (!base_spell)
             {
-                handler->PSendSysMessage("None of %u found bots have spell named '%s'!", cBots.size(), spell_name->c_str());
+                handler->PSendSysMessage("None of %u found bots have spell named '%s'!", found_bots_count, spell_name->c_str());
                 return true;
             }
 
@@ -2336,7 +2338,7 @@ public:
 
             if (!bot)
             {
-                handler->PSendSysMessage("None of %u found bots can use %s yet!", cBots.size(), spell_name->c_str());
+                handler->PSendSysMessage("None of %u found bots can use %s yet!", found_bots_count, spell_name->c_str());
                 return true;
             }
         }
@@ -2574,15 +2576,18 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        if (owner->GetBotMgr()->IsPartyInCombat())
+        if (owner->GetBotMgr()->IsPartyInCombat(false))
         {
             handler->GetSession()->SendNotification(LANG_YOU_IN_COMBAT);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        owner->GetBotMgr()->SetBotsHidden(true);
-        handler->SendSysMessage("Bots hidden");
+        if (!owner->GetBotMgr()->GetBotsHidden())
+        {
+            owner->GetBotMgr()->SetBotsHidden(true);
+            handler->SendSysMessage("Bots hidden");
+        }
         return true;
     }
 
@@ -2603,15 +2608,18 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        if (owner->GetBotMgr()->IsPartyInCombat() && (owner->IsPvP() || owner->IsFFAPvP()))
+        if (owner->GetBotMgr()->IsPartyInCombat(true))
         {
             handler->GetSession()->SendNotification("You can't do that while in PvP combat");
             handler->SetSentErrorMessage(true);
             return false;
         }
 
-        owner->GetBotMgr()->SetBotsHidden(false);
-        handler->SendSysMessage("Bots unhidden");
+        if (owner->GetBotMgr()->GetBotsHidden())
+        {
+            owner->GetBotMgr()->SetBotsHidden(false);
+            handler->SendSysMessage("Bots unhidden");
+        }
         return true;
     }
 
@@ -2663,9 +2671,9 @@ public:
         Player* owner = !bot->IsFreeBot() ? bot->GetBotOwner() : nullptr;
         Player* tickler = handler->GetPlayer();
 
-        if (tickler != owner && !tickler->IsGameMaster())
+        if (!tickler->IsGameMaster())
         {
-            handler->SendSysMessage("Must be in GM mode to fix other player's bot!");
+            handler->SendSysMessage("Must be in GM mode to use this command!");
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -2994,7 +3002,7 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        if (owner->GetBotMgr()->IsPartyInCombat())
+        if (owner->GetBotMgr()->IsPartyInCombat(false))
         {
             handler->GetSession()->SendNotification(LANG_YOU_IN_COMBAT);
             handler->SetSentErrorMessage(true);
@@ -3064,7 +3072,7 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-        if (owner->GetBotMgr()->IsPartyInCombat() && (owner->IsPvP() || owner->IsFFAPvP()))
+        if (owner->GetBotMgr()->IsPartyInCombat(true))
         {
             handler->GetSession()->SendNotification("You can't do that while in PvP combat");
             handler->SetSentErrorMessage(true);
@@ -3409,7 +3417,7 @@ public:
                 handler->PSendSysMessage("Cannot delete bot %s from console: has gear but no player to give it back to! Can only delete this bot in-game.", bot->GetName());
                 return false;
             }
-            if (!bot->GetBotAI()->UnEquipAll(receiver))
+            if (bot->GetBotAI()->UnEquipAll(receiver, false) != BotEquipResult::BOT_EQUIP_RESULT_OK)
             {
                 handler->PSendSysMessage("%s is unable to unequip some gear. Please remove equips manually first!", bot->GetName());
                 return false;

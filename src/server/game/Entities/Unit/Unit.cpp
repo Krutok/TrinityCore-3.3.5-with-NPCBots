@@ -1021,7 +1021,7 @@ bool Unit::HasBreakableByDamageCrowdControlAura(Unit* excludeCasterChannel) cons
         }
 
         //npcbot
-        if (victim->IsNPCBotOrPet() && attacker && victim != attacker && damagetype != NODAMAGE && damagetype != DOT && damage &&
+        if (victim->IsNPCBot() && attacker && victim != attacker && damagetype != NODAMAGE && damagetype != DOT && damage &&
             (attacker->IsNPCBotOrPet() || attacker->IsControlledByPlayer()) &&
             (!spellProto || !(spellProto->HasAttribute(SPELL_ATTR7_NO_PUSHBACK_ON_DAMAGE) || spellProto->HasAttribute(SPELL_ATTR3_TREAT_AS_PERIODIC))))
         {
@@ -2807,8 +2807,8 @@ float Unit::GetUnitDodgeChance(WeaponAttackType attType, Unit const* victim) con
     //npcbot - manual expertise instead of auras
     else if (IsNPCBot())
     {
-        chance -= ToCreature()->GetCreatureExpertise() * 25;
-        chance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25;
+        chance -= ToCreature()->GetCreatureExpertise() / 4.0f;
+        chance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) / 4.0f;
     }
     //end npcbot
     else
@@ -2868,8 +2868,8 @@ float Unit::GetUnitParryChance(WeaponAttackType attType, Unit const* victim) con
     //npcbot - manual expertise instead of auras
     else if (IsNPCBot())
     {
-        chance -= ToCreature()->GetCreatureExpertise() * 25;
-        chance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) * 25;
+        chance -= ToCreature()->GetCreatureExpertise() / 4.0f;
+        chance -= GetTotalAuraModifier(SPELL_AURA_MOD_EXPERTISE) / 4.0f;
     }
     //end npcbot
     else
@@ -6025,6 +6025,10 @@ void Unit::RemoveAllAttackers()
     while (!m_attackers.empty())
     {
         AttackerSet::iterator iter = m_attackers.begin();
+        //npcbot
+        if ((*iter)->IsNPCBotOrPet())
+            BotMgr::OnBotAttackStop((*iter)->ToCreature(), this);
+        //end npcbot
         if (!(*iter)->AttackStop())
         {
             TC_LOG_ERROR("entities.unit", "WORLD: Unit has an attacker that isn't attacking it!");
@@ -8891,7 +8895,7 @@ bool Unit::IsAlwaysVisibleFor(WorldObject const* seer) const
                     return true;
 
     //npcbot - bots are always visible for owner
-    if (GetCreator() && seer->GetGUID() == GetCreator()->GetGUID())
+    if (GetCreator() && (seer->GetGUID() == GetCreator()->GetGUID() || (seer->IsCreature() && seer->ToCreature()->GetCreator() == GetCreator())))
         return true;
     //end npcbot
 
@@ -9810,7 +9814,7 @@ bool Unit::CanFreeMove() const
             UNIT_STATE_ROOT | UNIT_STATE_STUNNED | UNIT_STATE_DISTRACTED);
     //end npcbot
     return !HasUnitState(UNIT_STATE_CONFUSED | UNIT_STATE_FLEEING | UNIT_STATE_IN_FLIGHT |
-        UNIT_STATE_ROOT | UNIT_STATE_STUNNED | UNIT_STATE_DISTRACTED) && GetOwnerGUID().IsEmpty();
+        UNIT_STATE_ROOT | UNIT_STATE_STUNNED | UNIT_STATE_DISTRACTED);
 }
 
 void Unit::SetLevel(uint8 lvl, bool sendUpdate/* = true*/)
@@ -12872,8 +12876,8 @@ float Unit::MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, i
     }
     //end npcbot
 
-    // melee attacks while dual wielding have +19% chance to miss
-    if (!spellId && haveOffhandWeapon())
+    // Check if dual wielding, add additional miss penalty - when mainhand has on next swing spell, offhand doesnt suffer penalty
+    if (!spellId && haveOffhandWeapon() && attType != RANGED_ATTACK && !m_currentSpells[CURRENT_MELEE_SPELL])
         missChance += 19.0f;
 
     // bonus from skills is 0.04%
@@ -13940,10 +13944,6 @@ bool Unit::CanSwim() const
         return false;
     if (HasUnitFlag(UNIT_FLAG_PET_IN_COMBAT))
         return true;
-    //npcbot
-    if (IsNPCBotOrPet())
-        return true;
-    //end npcbot
     return HasUnitFlag(UNIT_FLAG_RENAME | UNIT_FLAG_CAN_SWIM);
 }
 
