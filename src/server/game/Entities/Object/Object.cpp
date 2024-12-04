@@ -1058,7 +1058,7 @@ void WorldObject::_Create(ObjectGuid::LowType guidlow, HighGuid guidhigh, uint32
 void WorldObject::UpdatePositionData()
 {
     PositionFullTerrainStatus data;
-    GetMap()->GetFullTerrainStatusForPosition(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), data, MAP_ALL_LIQUIDS, GetCollisionHeight());
+    GetMap()->GetFullTerrainStatusForPosition(GetPhaseMask(), GetPositionX(), GetPositionY(), GetPositionZ(), data, {}, GetCollisionHeight());
     ProcessPositionDataChanged(data);
 }
 
@@ -3120,8 +3120,12 @@ bool WorldObject::IsValidAttackTarget(WorldObject const* target, SpellInfo const
     }
     //end npcbot
 
-    //npcbot
+    //npcbot: allow bots and their summons to ignore this rule
     if (unit && unitTarget && (unit->IsNPCBotOrPet() || unitTarget->IsNPCBotOrPet()))
+    {}
+    else if (unit && unit->GetOwnerGUID() && unit->GetOwnerGUID().IsCreature() && sObjectMgr->GetCreatureTemplate(unit->GetOwnerGUID().GetEntry())->IsNPCBotOrPet())
+    {}
+    else if (unitTarget && unitTarget->GetOwnerGUID() && unitTarget->GetOwnerGUID().IsCreature() && sObjectMgr->GetCreatureTemplate(unitTarget->GetOwnerGUID().GetEntry())->IsNPCBotOrPet())
     {}
     else
     //end npcbot
