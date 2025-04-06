@@ -2260,6 +2260,10 @@ class TC_GAME_API Player : public Unit, public GridObject<Player>
         /***                      END NPCBOT SYSTEM                    ***/
         /*****************************************************************/
 
+ 	// Wahl des Klassenmounts noch inaktiv -> Zu Aktivieren // entfernen
+        // uint8 GetMostPointsTalentTree() const;
+
+
     protected:
         // Gamemaster whisper whitelist
         GuidList WhisperList;
