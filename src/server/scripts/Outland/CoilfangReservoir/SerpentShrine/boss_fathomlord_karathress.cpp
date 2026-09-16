@@ -18,17 +18,19 @@
 /*
  * Greater Poison Cleansing Totem has no passive spell (nothing found in sniffs). What spell should it use?
  * Seer Olum's event is NYI (should be handled in DB)
- * Damage of fathom pets is too low, core issue (if creature is summoned by spell, damage is quite low)
+ * Verify Enrage spell, most likely current ID is not correct
+ * Damage of pets requires adjustments (seems too low) (DB issue)
  * Bestial Wrath cannot be applied on Fathom Lurker and only applies on Fathom Sporebat. The reason is Creature Type Mask = 0x00000001 (BEAST).
    It is unclear if this is an issue or not
  * Sharkkis should be able to summon multiple pets, at this moment he can have only one summoned pet per time
+ * Totems and Cyclone probably should despawn in case of wipe. At this moment it is NYI
  * Transform spells (handled in SAI for each totem) for totems cannot be casted by totems because of Totem::IsImmunedToSpellEffect (SPELL_AURA_TRANSFORM)
- * Timers requires to be revisited
  */
 
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
-#include "Map.h"
+#include "MotionMaster.h"
+#include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
@@ -48,7 +50,7 @@ enum KarathressSpells
     // Karathress
     SPELL_CATACLYSMIC_BOLT          = 38441,
     SPELL_SEAR_NOVA                 = 38445,
-    SPELL_BERSERK                   = 27680,
+    SPELL_ENRAGE                    = 24318,
 
     // Sharkkis
     SPELL_LEECHING_THROW            = 29436,
@@ -93,7 +95,7 @@ enum KarathressEvents
     // Karathress
     EVENT_CATACLYSMIC_BOLT          = 1,
     EVENT_SEAR_NOVA,
-    EVENT_BERSERK,
+    EVENT_ENRAGE,
 
     // Sharkkis
     EVENT_LEECHING_THROW,
@@ -116,88 +118,78 @@ enum KarathressEvents
 
 enum KarathressMisc
 {
-    SPAWN_GROUP_CARIBDIS            = 399,
-    SPAWN_GROUP_TIDALVESS           = 400,
-    SPAWN_GROUP_SHARKKIS            = 401,
-    ACTION_GIVE_BLESSING            = 0
-};
-
-static constexpr std::array<uint32, 3> FathomGuardSpawnGroupsData =
-{
-    SPAWN_GROUP_CARIBDIS,
-    SPAWN_GROUP_TIDALVESS,
-    SPAWN_GROUP_SHARKKIS
+    MAX_ADVISORS                    = 3
 };
 
 // 21214 - Fathom-Lord Karathress
 struct boss_fathomlord_karathress : public BossAI
 {
-    boss_fathomlord_karathress(Creature* creature) : BossAI(creature, BOSS_FATHOM_LORD_KARATHRESS),
-        _blessingOfTides(false), _performedEmote(false) { }
+    boss_fathomlord_karathress(Creature* creature) : BossAI(creature, BOSS_FATHOM_LORD_KARATHRESS), _blessingOfTides(false) { }
 
-    void JustAppeared() override
+    void Reset() override
     {
-        for (uint32 group : FathomGuardSpawnGroupsData)
-            me->GetMap()->SpawnGroupSpawn(group, true);
+        _blessingOfTides = false;
+
+        _advisors[0] = instance->GetGuidData(DATA_SHARKKIS);
+        _advisors[1] = instance->GetGuidData(DATA_TIDALVESS);
+        _advisors[2] = instance->GetGuidData(DATA_CARIBDIS);
+
+        // Respawn advisors
+        for (uint8 i = 0; i < MAX_ADVISORS; ++i)
+            if (!_advisors[i].IsEmpty())
+            {
+                Creature* advisor = ObjectAccessor::GetCreature(*me, _advisors[i]);
+                if (advisor && !advisor->IsAlive())
+                    advisor->Respawn();
+            }
+
+        _Reset();
     }
 
     void JustEngagedWith(Unit* who) override
     {
         BossAI::JustEngagedWith(who);
-
         Talk(SAY_AGGRO);
 
         events.ScheduleEvent(EVENT_CATACLYSMIC_BOLT, 5s, 10s);
         events.ScheduleEvent(EVENT_SEAR_NOVA, 40s, 50s);
-        events.ScheduleEvent(EVENT_BERSERK, 10min);
+        events.ScheduleEvent(EVENT_ENRAGE, 10min);
     }
 
     void SpellHit(WorldObject* /*caster*/, SpellInfo const* spellInfo) override
     {
-        switch (spellInfo->Id)
-        {
-            case SPELL_POWER_OF_SHARKKIS:
-            case SPELL_POWER_OF_TIDALVESS:
-            case SPELL_POWER_OF_CARIBDIS:
-                Talk(SAY_GAIN_ABILITY);
-                break;
-            case SPELL_BLESSING_OF_THE_TIDES:
-                if (!_performedEmote)
-                {
-                    Talk(SAY_GAIN_BLESSING);
-                    _performedEmote = true;
-                }
-                break;
-            default:
-                break;
-        }
+        if (spellInfo->Id == SPELL_POWER_OF_SHARKKIS || spellInfo->Id == SPELL_POWER_OF_TIDALVESS || spellInfo->Id == SPELL_POWER_OF_CARIBDIS)
+            Talk(SAY_GAIN_ABILITY);
     }
 
     void DamageTaken(Unit* /*attacker*/, uint32& damage, DamageEffectType /*damageType*/, SpellInfo const* /*spellInfo = nullptr*/) override
     {
         if (!_blessingOfTides && me->HealthBelowPctDamaged(75, damage))
         {
+            // It is important to get them again because if we respawned advisors previously,
+            // they were created with new guids, so below will not work second time
+            // We do it here and not in Reset() because Reset() is called before respawn
+            _advisors[0] = instance->GetGuidData(DATA_SHARKKIS);
+            _advisors[1] = instance->GetGuidData(DATA_TIDALVESS);
+            _advisors[2] = instance->GetGuidData(DATA_CARIBDIS);
+
             _blessingOfTides = true;
+            bool canPerformEmote = true;
+            for (ObjectGuid advisorGuid : _advisors)
+            {
+                Creature* advisor = ObjectAccessor::GetCreature(*me, advisorGuid);
+                if (advisor && advisor->IsAlive())
+                {
+                    advisor->CastSpell(advisor, SPELL_BLESSING_OF_THE_TIDES, true);
 
-            for (uint32 data : { DATA_CARIBDIS, DATA_TIDALVESS, DATA_SHARKKIS })
-                if (Creature* guard = instance->GetCreature(data))
-                    if (guard->IsAlive())
-                        guard->AI()->DoAction(ACTION_GIVE_BLESSING);
+                    if (canPerformEmote)
+                    {
+                        Talk(SAY_GAIN_BLESSING);
+                        canPerformEmote = false;
+                    }
+                }
+            }
         }
-    }
-
-    void JustSummoned(Creature* summon) override
-    {
-        summons.Summon(summon);
-    }
-
-    void EnterEvadeMode(EvadeReason /*why*/) override
-    {
-        for (uint32 group : FathomGuardSpawnGroupsData)
-            me->GetMap()->SpawnGroupDespawn(group);
-
-        summons.DespawnAll();
-        _DespawnAtEvade();
     }
 
     void KilledUnit(Unit* /*victim*/) override
@@ -226,17 +218,27 @@ struct boss_fathomlord_karathress : public BossAI
             switch (eventId)
             {
                 case EVENT_CATACLYSMIC_BOLT:
-                    if (me->GetThreatManager().GetThreatListPlayerCount() > 1)
-                        if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1, 80.0f, true))
-                            DoCast(target, SPELL_CATACLYSMIC_BOLT);
+                {
+                    // Select a random unit other than the main tank
+                    Unit* target = SelectTarget(SelectTargetMethod::Random, 1);
+
+                    // If there aren't other units, cast on the tank
+                    if (!target)
+                        target = me->GetVictim();
+
+                    if (target)
+                        DoCast(target, SPELL_CATACLYSMIC_BOLT);
+
                     events.Repeat(6s, 12s);
                     break;
+                }
                 case EVENT_SEAR_NOVA:
                     DoCastSelf(SPELL_SEAR_NOVA);
                     events.Repeat(30s, 40s);
                     break;
-                case EVENT_BERSERK:
-                    DoCastSelf(SPELL_BERSERK);
+                case EVENT_ENRAGE:
+                    DoCastSelf(SPELL_ENRAGE);
+                    events.Repeat(90s);
                     break;
                 default:
                     break;
@@ -251,45 +253,67 @@ struct boss_fathomlord_karathress : public BossAI
 
 private:
     bool _blessingOfTides;
-    bool _performedEmote;
+    ObjectGuid _advisors[MAX_ADVISORS];
 };
 
-struct FathomGuardBaseAI : public ScriptedAI
+// 21966 - Fathom-Guard Sharkkis
+struct boss_fathomguard_sharkkis : public ScriptedAI
 {
-    FathomGuardBaseAI(Creature* creature) : ScriptedAI(creature), Instance(creature->GetInstanceScript()) { }
+    boss_fathomguard_sharkkis(Creature* creature) : ScriptedAI(creature) { }
 
     void Reset() override
     {
-        Events.Reset();
+        _events.Reset();
     }
 
-    void DoAction(int32 action) override
+    void JustEngagedWith(Unit* /*who*/) override
     {
-        if (action == ACTION_GIVE_BLESSING)
-            DoCastSelf(SPELL_BLESSING_OF_THE_TIDES, true);
+        _events.ScheduleEvent(EVENT_LEECHING_THROW, 5s, 10s);
+        _events.ScheduleEvent(EVENT_THE_BEAST_WITHIN, 30s, 40s);
+        _events.ScheduleEvent(EVENT_MULTI_TOSS, 20s, 30s);
+        _events.ScheduleEvent(EVENT_SUMMON_FATHOM_PET, 10s);
     }
 
-    void JustSummoned(Creature* summon) override
+    void JustDied(Unit* /*killer*/) override
     {
-        if (Creature* karathress = Instance->GetCreature(BOSS_FATHOM_LORD_KARATHRESS))
-            karathress->AI()->JustSummoned(summon);
+        DoCastSelf(SPELL_POWER_OF_SHARKKIS);
     }
-
-    virtual void ExecuteEvent(uint32 const eventId) = 0;
 
     void UpdateAI(uint32 diff) override
     {
         if (!UpdateVictim())
             return;
 
-        Events.Update(diff);
+        _events.Update(diff);
 
         if (me->HasUnitState(UNIT_STATE_CASTING))
             return;
 
-        while (uint32 eventId = Events.ExecuteEvent())
+        while (uint32 eventId = _events.ExecuteEvent())
         {
-            ExecuteEvent(eventId);
+            switch (eventId)
+            {
+                case EVENT_LEECHING_THROW:
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        DoCast(target, SPELL_LEECHING_THROW);
+                    _events.Repeat(5s, 10s);
+                    break;
+                case EVENT_THE_BEAST_WITHIN:
+                    DoCastSelf(SPELL_THE_BEAST_WITHIN);
+                    _events.Repeat(30s, 40s);
+                    break;
+                case EVENT_MULTI_TOSS:
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        DoCast(target, SPELL_MULTI_TOSS);
+                    _events.Repeat(20s, 30s);
+                    break;
+                case EVENT_SUMMON_FATHOM_PET:
+                    DoCastSelf(RAND(SPELL_SUMMON_FATHOM_LURKER, SPELL_SUMMON_FATHOM_SPOREBAT));
+                    _events.Repeat(30s);
+                    break;
+                default:
+                    break;
+            }
 
             if (me->HasUnitState(UNIT_STATE_CASTING))
                 return;
@@ -298,73 +322,27 @@ struct FathomGuardBaseAI : public ScriptedAI
         DoMeleeAttackIfReady();
     }
 
-protected:
-    InstanceScript* Instance;
-    EventMap Events;
-};
-
-// 21966 - Fathom-Guard Sharkkis
-struct boss_fathomguard_sharkkis : public FathomGuardBaseAI
-{
-    using FathomGuardBaseAI::FathomGuardBaseAI;
-
-    void JustEngagedWith(Unit* /*who*/) override
-    {
-        Events.ScheduleEvent(EVENT_LEECHING_THROW, 5s, 10s);
-        Events.ScheduleEvent(EVENT_THE_BEAST_WITHIN, 30s, 40s);
-        Events.ScheduleEvent(EVENT_MULTI_TOSS, 20s, 30s);
-        Events.ScheduleEvent(EVENT_SUMMON_FATHOM_PET, 10s);
-    }
-
-    void JustDied(Unit* /*killer*/) override
-    {
-        DoCastSelf(SPELL_POWER_OF_SHARKKIS);
-    }
-
-    void ExecuteEvent(uint32 eventId) override
-    {
-        switch (eventId)
-        {
-            case EVENT_LEECHING_THROW:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                    DoCast(target, SPELL_LEECHING_THROW);
-                Events.Repeat(5s, 10s);
-                break;
-            case EVENT_THE_BEAST_WITHIN:
-                DoCastSelf(SPELL_THE_BEAST_WITHIN);
-                Events.Repeat(30s, 40s);
-                break;
-            case EVENT_MULTI_TOSS:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                    DoCast(target, SPELL_MULTI_TOSS);
-                Events.Repeat(20s, 30s);
-                break;
-            case EVENT_SUMMON_FATHOM_PET:
-                DoCastSelf(RAND(SPELL_SUMMON_FATHOM_LURKER, SPELL_SUMMON_FATHOM_SPOREBAT));
-                Events.Repeat(30s);
-                break;
-            default:
-                break;
-        }
-    }
+private:
+    EventMap _events;
 };
 
 // 21965 - Fathom-Guard Tidalvess
-struct boss_fathomguard_tidalvess : public FathomGuardBaseAI
+struct boss_fathomguard_tidalvess : public ScriptedAI
 {
-    using FathomGuardBaseAI::FathomGuardBaseAI;
+    boss_fathomguard_tidalvess(Creature* creature) : ScriptedAI(creature) { }
 
-    void JustAppeared() override
+    void Reset() override
     {
+        _events.Reset();
         DoCastSelf(SPELL_WINDFURY);
     }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        Events.ScheduleEvent(EVENT_FROST_SHOCK, 10s, 15s);
-        Events.ScheduleEvent(EVENT_SPITFIRE_TOTEM, 10s, 15s);
-        Events.ScheduleEvent(EVENT_EARTHBIND_TOTEM, 15s, 25s);
-        Events.ScheduleEvent(EVENT_POISON_CLEANSING_TOTEM, 20s, 30s);
+        _events.ScheduleEvent(EVENT_FROST_SHOCK, 10s, 15s);
+        _events.ScheduleEvent(EVENT_SPITFIRE_TOTEM, 10s, 15s);
+        _events.ScheduleEvent(EVENT_EARTHBIND_TOTEM, 15s, 25s);
+        _events.ScheduleEvent(EVENT_POISON_CLEANSING_TOTEM, 20s, 30s);
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -372,43 +350,67 @@ struct boss_fathomguard_tidalvess : public FathomGuardBaseAI
         DoCastSelf(SPELL_POWER_OF_TIDALVESS);
     }
 
-    void ExecuteEvent(uint32 eventId) override
+    void UpdateAI(uint32 diff) override
     {
-        switch (eventId)
+        if (!UpdateVictim())
+            return;
+
+        _events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        while (uint32 eventId = _events.ExecuteEvent())
         {
-            case EVENT_FROST_SHOCK:
-                DoCastVictim(SPELL_FROST_SHOCK);
-                Events.Repeat(10s, 15s);
-                break;
-            case EVENT_SPITFIRE_TOTEM:
-                DoCastSelf(SPELL_SPITFIRE_TOTEM);
-                Events.Repeat(40s, 60s);
-                break;
-            case EVENT_EARTHBIND_TOTEM:
-                DoCastSelf(SPELL_EARTHBIND_TOTEM);
-                Events.Repeat(40s, 60s);
-                break;
-            case EVENT_POISON_CLEANSING_TOTEM:
-                DoCastSelf(SPELL_POISON_CLEANSING_TOTEM);
-                Events.Repeat(30s, 50s);
-                break;
-            default:
-                break;
+            switch (eventId)
+            {
+                case EVENT_FROST_SHOCK:
+                    DoCastVictim(SPELL_FROST_SHOCK);
+                    _events.Repeat(10s, 15s);
+                    break;
+                case EVENT_SPITFIRE_TOTEM:
+                    DoCastSelf(SPELL_SPITFIRE_TOTEM);
+                    _events.Repeat(40s, 60s);
+                    break;
+                case EVENT_EARTHBIND_TOTEM:
+                    DoCastSelf(SPELL_EARTHBIND_TOTEM);
+                    _events.Repeat(40s, 60s);
+                    break;
+                case EVENT_POISON_CLEANSING_TOTEM:
+                    DoCastSelf(SPELL_POISON_CLEANSING_TOTEM);
+                    _events.Repeat(30s, 50s);
+                    break;
+                default:
+                    break;
+            }
+
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
         }
+
+        DoMeleeAttackIfReady();
     }
+
+private:
+    EventMap _events;
 };
 
 // 21964 - Fathom-Guard Caribdis
-struct boss_fathomguard_caribdis : public FathomGuardBaseAI
+struct boss_fathomguard_caribdis : public ScriptedAI
 {
-    using FathomGuardBaseAI::FathomGuardBaseAI;
+    boss_fathomguard_caribdis(Creature* creature) : ScriptedAI(creature) { }
+
+    void Reset() override
+    {
+        _events.Reset();
+    }
 
     void JustEngagedWith(Unit* /*who*/) override
     {
-        Events.ScheduleEvent(EVENT_WATER_BOLT_VOLLEY, 15s, 25s);
-        Events.ScheduleEvent(EVENT_TIDAL_SURGE, 15s, 20s);
-        Events.ScheduleEvent(EVENT_SUMMON_CYCLONE, 10s, 25s);
-        Events.ScheduleEvent(EVENT_HEALING_WAVE, 15s, 25s);
+        _events.ScheduleEvent(EVENT_WATER_BOLT_VOLLEY, 15s, 25s);
+        _events.ScheduleEvent(EVENT_TIDAL_SURGE, 15s, 20s);
+        _events.ScheduleEvent(EVENT_SUMMON_CYCLONE, 10s, 25s);
+        _events.ScheduleEvent(EVENT_HEALING_WAVE, 15s, 25s);
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -416,38 +418,57 @@ struct boss_fathomguard_caribdis : public FathomGuardBaseAI
         DoCastSelf(SPELL_POWER_OF_CARIBDIS);
     }
 
-    void ExecuteEvent(uint32 eventId) override
+    void UpdateAI(uint32 diff) override
     {
-        switch (eventId)
+        if (!UpdateVictim())
+            return;
+
+        _events.Update(diff);
+
+        if (me->HasUnitState(UNIT_STATE_CASTING))
+            return;
+
+        while (uint32 eventId = _events.ExecuteEvent())
         {
-            case EVENT_WATER_BOLT_VOLLEY:
-                DoCastSelf(SPELL_WATER_BOLT_VOLLEY);
-                Events.Repeat(10s, 30s);
-                break;
-            case EVENT_TIDAL_SURGE:
-                DoCastSelf(SPELL_TIDAL_SURGE);
-                Events.Repeat(15s, 25s);
-                break;
-            case EVENT_SUMMON_CYCLONE:
-                if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
-                    DoCast(target, SPELL_SUMMON_CYCLONE);
-                Events.Repeat(40s, 50s);
-                break;
-            case EVENT_HEALING_WAVE:
-                if (Unit* target = DoSelectLowestHpFriendly(250.0f))
-                    DoCast(target, SPELL_HEALING_WAVE);
-                Events.Repeat(15s, 20s);
-                break;
-            default:
-                break;
+            switch (eventId)
+            {
+                case EVENT_WATER_BOLT_VOLLEY:
+                    DoCastSelf(SPELL_WATER_BOLT_VOLLEY);
+                    _events.Repeat(10s, 30s);
+                    break;
+                case EVENT_TIDAL_SURGE:
+                    DoCastSelf(SPELL_TIDAL_SURGE);
+                    _events.Repeat(15s, 25s);
+                    break;
+                case EVENT_SUMMON_CYCLONE:
+                    if (Unit* target = SelectTarget(SelectTargetMethod::Random, 0))
+                        DoCast(target, SPELL_SUMMON_CYCLONE);
+                    _events.Repeat(40s, 50s);
+                    break;
+                case EVENT_HEALING_WAVE:
+                    if (Unit* target = DoSelectLowestHpFriendly(250.0f))
+                        DoCast(target, SPELL_HEALING_WAVE);
+                    _events.Repeat(15s, 20s);
+                    break;
+                default:
+                    break;
+            }
+
+            if (me->HasUnitState(UNIT_STATE_CASTING))
+                return;
         }
+
+        DoMeleeAttackIfReady();
     }
+
+private:
+    EventMap _events;
 };
 
 // 22104 - Cyclone (Karathress)
 struct npc_fathomlord_karathress_cyclone : public ScriptedAI
 {
-    using ScriptedAI::ScriptedAI;
+    npc_fathomlord_karathress_cyclone(Creature* creature) : ScriptedAI(creature) { }
 
     void Reset() override
     {
@@ -459,12 +480,12 @@ struct npc_fathomlord_karathress_cyclone : public ScriptedAI
         DoCastSelf(SPELL_CYCLONE_WATER_VISUAL);
         DoCastSelf(SPELL_CYCLONE_WATER_VISUAL_2);
         DoCastSelf(SPELL_CYCLONE_KNOCK_BACK);
-        /// @todo: Seems like on retail this aura does not trigger spell despite this aura is shown in sniffs in aura update packet. Also using this makes
-        /// cyclone overpowered and creates behavior we don't see in movies. Same problem occurs in Karazhan's Wizard of Oz. Investigate this
-        /// DoCastSelf(SPELL_CYCLONE_KNOCK_BACK_2);
-        /// @todo: After first tick makes creature stop movement, the reason is the script linked to this spell
-        /// DoCastSelf(SPELL_DREAM_FOG);
+        /// @todo: This requires rechecks. Seems like on retail this aura does not trigger spell despite
+        /// this aura is shown in sniffs in aura update packet. Also using this makes cyclone overpowered and creates behavior we don't see in movies
+        // DoCastSelf(SPELL_CYCLONE_KNOCK_BACK_2);
+        DoCastSelf(SPELL_DREAM_FOG);
 
+        /// @todo: This requires additional research
         _scheduler.Schedule(10s, [this](TaskContext task)
         {
             DoZoneInCombat();
@@ -473,7 +494,8 @@ struct npc_fathomlord_karathress_cyclone : public ScriptedAI
             {
                 ResetThreatList();
                 AddThreat(target, 1000000.0f);
-                AttackStart(target);
+                /// @todo: We are forcing creature to chase target, otherwise it will not chase players. Investigate this
+                me->GetMotionMaster()->MoveChase(target);
             }
             task.Repeat(10s);
         });
@@ -502,7 +524,7 @@ class spell_fathomlord_karathress_tidal_surge : public SpellScript
 
     void HandleScript(SpellEffIndex /*effIndex*/)
     {
-        GetHitUnit()->CastSpell(nullptr, SPELL_TIDAL_SURGE_EFFECT, true);
+        GetHitUnit()->CastSpell(GetHitUnit(), SPELL_TIDAL_SURGE_EFFECT, true);
     }
 
     void Register() override
@@ -523,7 +545,7 @@ class spell_fathomlord_karathress_the_beast_within : public SpellScript
 
     void HandleCast()
     {
-        GetCaster()->CastSpell(nullptr, SPELL_BESTIAL_WRATH, true);
+        GetCaster()->CastSpell(GetCaster(), SPELL_BESTIAL_WRATH);
     }
 
     void Register() override
